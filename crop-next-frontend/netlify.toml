@@ -1,25 +1,8 @@
 [build]
   command = "npm run build"
-  publish = ".next"
-  functions = "netlify/functions"
 
-[functions]
-  node_bundler = "esbuild"
-  included_files = ["public/**"]
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-# Environment variables configuration
 [build.environment]
-  # Node version
   NODE_VERSION = "20"
-  # Build timeout in seconds (Netlify default is 30 minutes, we increase to be safe)
-  # Note: Set timeout in Netlify dashboard if needed (max is 2 hours with Professional plan)
 
-# Netlify Edge Functions (optional, for serverless API routes if needed later)
-[[edge_functions]]
-  path = "/api/*"
-  function = "api"
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
