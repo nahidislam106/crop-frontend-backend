@@ -7,6 +7,7 @@ import { API_BASE } from "@/lib/utils";
 import { ref, onValue, off, push, set } from "firebase/database";
 import { database } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { useLanguage } from "@/lib/language-context";
 import Image from "next/image";
 import {
   Sprout, FlaskConical, Thermometer, CloudSun, Loader2, AlertCircle,
@@ -45,6 +46,14 @@ interface IdealParam {
   max:    number;
   median: number;
 }
+
+interface PredictionEntry {
+  date: string;
+  prediction: string;
+  sensorData?: Record<string, unknown>;
+}
+
+type LandPredictions = Record<string, PredictionEntry[]>;
 
 const defaultValues: FormValues = {
   N: "", P: "", K: "",
@@ -118,6 +127,8 @@ interface SoilReading {
 
 export default function RecommendPage() {
   const { user } = useAuth();
+  const { language } = useLanguage();
+  const isBangla = language === "bn";
   const [form,    setForm]    = useState<FormValues>(defaultValues);
   const [result,  setResult]  = useState<CropResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -134,6 +145,9 @@ export default function RecommendPage() {
   const [sensorLoadedAt, setSensorLoadedAt] = useState<Date | null>(null);
   const [autoPredict,   setAutoPredict]   = useState(false);
   const submitRef = useRef<HTMLButtonElement>(null);
+  const pageDescription = isBangla
+    ? "মাটি ও আবহাওয়ার প্যারামিটার দিন, AI-চালিত ফসলের পরামর্শ নিন"
+    : "Enter soil and weather parameters to get an AI-powered crop suggestion";
 
   // Subscribe to Firebase sensor data
   useEffect(() => {
@@ -240,17 +254,40 @@ export default function RecommendPage() {
   const savePrediction = async () => {
     if (!result || !user) return;
     setSaveStatus("saving");
+
+    const localEntry: PredictionEntry = {
+      date: new Date().toLocaleString(),
+      prediction: `${result.recommended_crop} (${Math.round(result.confidence * 100)}%)`,
+      sensorData: result.input_features,
+    };
+
+    const storageKey = `predictions_${user.uid}`;
+
     try {
-      const predRef = push(ref(database, `users/${user.uid}/predictions`));
-      await set(predRef, {
-        crop:       result.recommended_crop,
-        confidence: result.confidence,
-        model:      result.model_name,
-        inputs:     result.input_features,
-        savedAt:    Date.now(),
-      });
+      const currentPredictions: LandPredictions = JSON.parse(localStorage.getItem(storageKey) ?? "{}") || {};
+      const landName = "Saved Recommendations";
+      const updatedPredictions: LandPredictions = {
+        ...currentPredictions,
+        [landName]: [...(currentPredictions[landName] ?? []), localEntry],
+      };
+      localStorage.setItem(storageKey, JSON.stringify(updatedPredictions));
+
+      try {
+        const predRef = push(ref(database, `users/${user.uid}/predictions`));
+        await set(predRef, {
+          crop:       result.recommended_crop,
+          confidence: result.confidence,
+          model:      result.model_name,
+          inputs:     result.input_features,
+          savedAt:    Date.now(),
+        });
+      } catch (err) {
+        console.error("Firebase prediction sync failed:", err);
+      }
+
       setSaveStatus("saved");
-    } catch {
+    } catch (err) {
+      console.error("Local prediction save failed:", err);
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 3000);
     }
@@ -283,9 +320,9 @@ export default function RecommendPage() {
   return (
     <ProtectedLayout>
       <PageHeader
-        title="Crop Recommendation"
-        description="Enter soil and weather parameters to get an AI-powered crop suggestion"
-        badge="AI Powered"
+        title={isBangla ? "ফসলের পরামর্শ" : "Crop Recommendation"}
+        description={pageDescription}
+        badge={isBangla ? "AI-চালিত" : "AI Powered"}
       />
 
       <div className="grid lg:grid-cols-5 gap-6">
@@ -310,14 +347,14 @@ export default function RecommendPage() {
               </div>
               <div className="min-w-0">
                 <p className={cn("text-sm font-semibold", sensorOnline ? "text-emerald-800" : "text-gray-600")}>
-                  {sensorOnline ? "Live Sensor Connected" : "No Sensor Signal"}
+                  {sensorOnline ? (isBangla ? "লাইভ সেন্সর যুক্ত" : "Live Sensor Connected") : (isBangla ? "সেন্সর সিগন্যাল নেই" : "No Sensor Signal")}
                 </p>
                 <p className="text-xs text-gray-500 truncate">
                   {sensorOnline
                     ? sensorLoadedAt
-                      ? `Last loaded: ${sensorLoadedAt.toLocaleTimeString()}`
-                      : "Tap to auto-fill soil parameters"
-                    : "Connect your ESP8266 device to Firebase"}
+                      ? `${isBangla ? "শেষ লোড:" : "Last loaded:"} ${sensorLoadedAt.toLocaleTimeString()}`
+                      : isBangla ? "সেন্সর থেকে মাটির মান স্বয়ংক্রিয়ভাবে নিন" : "Tap to auto-fill soil parameters"
+                    : isBangla ? "আপনার ESP8266 ডিভাইসটি Firebase-এ সংযুক্ত করুন" : "Connect your ESP8266 device to Firebase"}
                 </p>
               </div>
             </div>
@@ -333,25 +370,33 @@ export default function RecommendPage() {
                       ? "bg-purple-100 border-purple-300 text-purple-700"
                       : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50"
                   )}
-                  title="When enabled, loading sensor data will immediately trigger prediction"
+                  title={isBangla ? "চালু থাকলে সেন্সর ডেটা লোড হলেই সঙ্গে সঙ্গে পূর্বাভাস দেবে" : "When enabled, loading sensor data will immediately trigger prediction"}
                 >
                   <ZapIcon size={12} />
-                  Auto-predict {autoPredict ? "ON" : "OFF"}
+                  {isBangla ? "অটো-পূর্বাভাস" : "Auto-predict"} {autoPredict ? (isBangla ? "চালু" : "ON") : (isBangla ? "বন্ধ" : "OFF")}
                 </button>
               )}
+
               <button
                 type="button"
                 disabled={!sensorOnline}
                 onClick={() => loadFromSensor(autoPredict)}
                 className={cn(
-                  "flex items-center gap-1.5 text-xs px-4 py-1.5 rounded-lg border font-semibold transition-all",
+                  "flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border font-medium transition-all",
                   sensorOnline
                     ? "bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700 shadow-sm"
                     : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
                 )}
+                title={
+                  sensorOnline
+                    ? sensorLoadedAt
+                      ? `${isBangla ? "শেষ লোড:" : "Last loaded:"} ${sensorLoadedAt.toLocaleTimeString()}`
+                      : isBangla ? "সেন্সর থেকে মাটির মান স্বয়ংক্রিয়ভাবে নিন" : "Tap to auto-fill soil parameters"
+                    : isBangla ? "আপনার ESP8266 ডিভাইসটি Firebase-এ সংযুক্ত করুন" : "Connect your ESP8266 device to Firebase"
+                }
               >
                 <Radio size={12} />
-                Load from Sensor
+                {isBangla ? "সেন্সর থেকে নিন" : "Load from Sensor"}
               </button>
             </div>
           </div>
@@ -361,10 +406,12 @@ export default function RecommendPage() {
             <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 mb-4 animate-fade-in">
               <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
               <p className="text-xs text-emerald-800 font-medium">
-                Soil fields auto-filled from live sensor — review weather fields below, then predict.
+                {isBangla
+                  ? "লাইভ সেন্সর থেকে মাটির ফিল্ডগুলো পূরণ হয়েছে — নিচের আবহাওয়ার ফিল্ডগুলো দেখে নিন, তারপর পূর্বাভাস দিন।"
+                  : "Soil fields auto-filled from live sensor — review weather fields below, then predict."}
               </p>
               <button onClick={clearForm} className="ml-auto text-xs text-emerald-600 hover:underline">
-                Clear
+                {isBangla ? "মুছুন" : "Clear"}
               </button>
             </div>
           )}
@@ -373,7 +420,7 @@ export default function RecommendPage() {
             <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
               <h2 className="font-bold text-gray-900 flex items-center gap-2">
                 <FlaskConical size={18} className="text-blue-500" />
-                Input Parameters
+                {isBangla ? "ইনপুট প্যারামিটার" : "Input Parameters"}
               </h2>
               <div className="flex gap-2">
                 <button
@@ -381,14 +428,14 @@ export default function RecommendPage() {
                   onClick={fillSample}
                   className="text-xs text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg font-medium hover:bg-blue-100 transition-all"
                 >
-                  Load Sample
+                  {isBangla ? "নমুনা লোড" : "Load Sample"}
                 </button>
                 <button
                   type="button"
                   onClick={clearForm}
                   className="text-xs text-gray-500 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg font-medium hover:bg-gray-100 transition-all"
                 >
-                  Clear
+                  {isBangla ? "মুছুন" : "Clear"}
                 </button>
               </div>
             </div>
@@ -443,11 +490,11 @@ export default function RecommendPage() {
                 className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-xl shadow-md hover:shadow-green-200 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed transition-all active:scale-[0.99] text-sm"
               >
                 {loading ? (
-                  <><Loader2 size={18} className="animate-spin" /> Analyzing…</>
+                    <><Loader2 size={18} className="animate-spin" /> {isBangla ? "বিশ্লেষণ করা হচ্ছে…" : "Analyzing…"}</>
                 ) : sensorLoaded ? (
-                  <><Radio size={18} /> Predict from Sensor Data</>
+                    <><Radio size={18} /> {isBangla ? "সেন্সর ডেটা থেকে পূর্বাভাস" : "Predict from Sensor Data"}</>
                 ) : (
-                  <><Sprout size={18} /> Get Recommendation</>
+                    <><Sprout size={18} /> {isBangla ? "পরামর্শ নিন" : "Get Recommendation"}</>
                 )}
               </button>
             </form>
@@ -462,7 +509,7 @@ export default function RecommendPage() {
               <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-5 text-white">
                 <div className="flex items-center gap-2 text-green-100 text-xs font-medium mb-3">
                   <CheckCircle2 size={14} />
-                  Recommendation ready
+                  {isBangla ? "পরামর্শ প্রস্তুত" : "Recommendation ready"}
                 </div>
                 {cropImgSrc ? (
                   <div className="relative w-full h-44 rounded-xl overflow-hidden mb-3 shadow-md">
@@ -480,14 +527,14 @@ export default function RecommendPage() {
                 <h3 className="text-3xl font-bold capitalize mb-1">
                   {result.recommended_crop}
                 </h3>
-                <p className="text-green-100 text-sm">Best suited crop for your conditions</p>
+                <p className="text-green-100 text-sm">{isBangla ? "আপনার অবস্থার জন্য সবচেয়ে উপযোগী ফসল" : "Best suited crop for your conditions"}</p>
               </div>
 
               <div className="p-6">
                 {/* Confidence bar */}
                 <div className="mb-5">
                   <div className="flex justify-between mb-2">
-                    <span className="text-xs text-gray-500 font-medium">Model Confidence</span>
+                    <span className="text-xs text-gray-500 font-medium">{isBangla ? "মডেলের আত্মবিশ্বাস" : "Model Confidence"}</span>
                     <span className="text-xs font-bold text-gray-900">{confidencePct}%</span>
                   </div>
                   <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
@@ -518,13 +565,13 @@ export default function RecommendPage() {
                   )}
                 >
                   {saveStatus === "saving" ? (
-                    <><Loader2 size={15} className="animate-spin" /> Saving…</>
+                    <><Loader2 size={15} className="animate-spin" /> {isBangla ? "সংরক্ষণ করা হচ্ছে…" : "Saving…"}</>
                   ) : saveStatus === "saved" ? (
-                    <><BookmarkCheck size={15} /> Prediction Saved</>
+                    <><BookmarkCheck size={15} /> {isBangla ? "পূর্বাভাস সংরক্ষিত" : "Prediction Saved"}</>
                   ) : saveStatus === "error" ? (
-                    <><AlertCircle size={15} /> Save Failed — Retry</>
+                    <><AlertCircle size={15} /> {isBangla ? "সংরক্ষণ ব্যর্থ — আবার চেষ্টা করুন" : "Save Failed — Retry"}</>
                   ) : (
-                    <><BookmarkPlus size={15} /> Save Prediction</>
+                    <><BookmarkPlus size={15} /> {isBangla ? "পূর্বাভাস সংরক্ষণ" : "Save Prediction"}</>
                   )}
                 </button>
 
@@ -539,7 +586,7 @@ export default function RecommendPage() {
                 >
                   <span className="flex items-center gap-2">
                     <Info size={14} />
-                    {ideaLoading ? "Loading ideal conditions…" : "View Ideal Soil Conditions"}
+                    {ideaLoading ? (isBangla ? "আদর্শ অবস্থা লোড হচ্ছে…" : "Loading ideal conditions…") : (isBangla ? "আদর্শ মাটির অবস্থা দেখুন" : "View Ideal Soil Conditions")}
                   </span>
                   {ideaLoading
                     ? <Loader2 size={14} className="animate-spin" />
@@ -554,9 +601,9 @@ export default function RecommendPage() {
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="bg-gray-50 border-b border-gray-100">
-                            <th className="text-left px-3 py-2.5 font-semibold text-gray-500">Parameter</th>
-                            <th className="text-right px-3 py-2.5 font-semibold text-gray-500">Mean</th>
-                            <th className="text-right px-3 py-2.5 font-semibold text-gray-500">Range</th>
+                            <th className="text-left px-3 py-2.5 font-semibold text-gray-500">{isBangla ? "প্যারামিটার" : "Parameter"}</th>
+                            <th className="text-right px-3 py-2.5 font-semibold text-gray-500">{isBangla ? "গড়" : "Mean"}</th>
+                            <th className="text-right px-3 py-2.5 font-semibold text-gray-500">{isBangla ? "পরিসীমা" : "Range"}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -584,30 +631,32 @@ export default function RecommendPage() {
               <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Sprout size={28} className="text-green-400" />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">Ready to analyze</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">{isBangla ? "বিশ্লেষণের জন্য প্রস্তুত" : "Ready to analyze"}</h3>
               <p className="text-sm text-gray-400 leading-relaxed">
-                Fill in soil and weather parameters, then click Get Recommendation to see your AI-powered crop suggestion.
+                {isBangla
+                  ? "মাটি ও আবহাওয়ার প্যারামিটার পূরণ করুন, তারপর পরামর্শ নিন ক্লিক করে AI-চালিত ফসলের পরামর্শ দেখুন।"
+                  : "Fill in soil and weather parameters, then click Get Recommendation to see your AI-powered crop suggestion."}
               </p>
               <button
                 onClick={fillSample}
                 className="mt-4 text-xs text-green-600 bg-green-50 border border-green-200 px-4 py-2 rounded-lg font-medium hover:bg-green-100 transition-all"
               >
-                Try with sample data
+                {isBangla ? "নমুনা ডেটা দিয়ে চেষ্টা করুন" : "Try with sample data"}
               </button>
             </div>
           )}
 
           {/* Tips card */}
           <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-100 p-5">
-            <h4 className="font-semibold text-amber-900 text-sm mb-3 flex items-center gap-2">
-              <span>💡</span> Tips for accuracy
+              <h4 className="font-semibold text-amber-900 text-sm mb-3 flex items-center gap-2">
+              <span>💡</span> {isBangla ? "নির্ভুলতার জন্য পরামর্শ" : "Tips for accuracy"}
             </h4>
             <ul className="space-y-2">
               {[
-                "Use NPK sensor readings from your actual field",
-                "Take soil samples from multiple spots",
-                "Weather data should reflect current conditions",
-                "EC measured in dS/m (not µS/cm)",
+                isBangla ? "আপনার আসল ফিল্ডের NPK সেন্সর রিডিং ব্যবহার করুন" : "Use NPK sensor readings from your actual field",
+                isBangla ? "বিভিন্ন স্থান থেকে মাটির নমুনা নিন" : "Take soil samples from multiple spots",
+                isBangla ? "আবহাওয়ার ডেটা বর্তমান অবস্থা প্রতিফলিত করতে হবে" : "Weather data should reflect current conditions",
+                isBangla ? "EC dS/cm-এ মাপুন (µS/cm নয়)" : "EC measured in dS/cm (not µS/cm)",
               ].map((tip) => (
                 <li key={tip} className="flex items-start gap-2 text-xs text-amber-800">
                   <CheckCircle2 size={12} className="text-amber-500 shrink-0 mt-0.5" />

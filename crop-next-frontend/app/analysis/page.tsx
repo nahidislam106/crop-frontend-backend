@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Fragment, useState, useEffect, useCallback } from "react";
 import ProtectedLayout from "@/components/ProtectedLayout";
 import PageHeader from "@/components/PageHeader";
 import { ref, onValue } from "firebase/database";
 import { database } from "@/lib/firebase";
 import { API_BASE, cn, formatNumber } from "@/lib/utils";
 import { CROP_NAMES } from "@/lib/knowledge-base";
+import { useLanguage } from "@/lib/language-context";
 import {
   FlaskConical, Thermometer, Droplets, Zap, Sprout,
   TrendingUp, TrendingDown, CheckCircle2, AlertTriangle,
@@ -478,6 +479,8 @@ const TYPE_LABELS: Record<string, string> = {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function CropAnalysisPage() {
+  const { language } = useLanguage();
+  const isBangla = language === "bn";
   type Mode = "compare" | "ideal";
   const [selectedCrop, setSelectedCrop] = useState<string>("rice");
   const [mode,         setMode]         = useState<Mode>("compare");
@@ -487,12 +490,17 @@ export default function CropAnalysisPage() {
   const [sensor,       setSensor]       = useState<LiveSensor | null>(null);
   const [sensorOnline, setSensorOnline] = useState(false);
   const [dropOpen,     setDropOpen]     = useState(false);
+  const pageDescription = isBangla
+    ? "লাইভ সেন্সর রিডিংকে আদর্শ প্যারামিটারের সাথে তুলনা করুন, অথবা যেকোনো ফসলের আদর্শ মান দেখুন"
+    : "Compare live sensor readings against ideal parameters, or browse ideal values for any crop · ফসল বিশ্লেষণ";
+  const compareLabel = isBangla ? "রিয়েলটাইম তুলনা" : "Compare with Realtime";
+  const compareBnLabel = "রিয়েলটাইম তুলনা";
 
   // Firebase live listener
   useEffect(() => {
     const dbRef = ref(database, "npkSensor/current");
     const unsub = onValue(dbRef, (snap) => {
-      const data = snap.val();
+      const data = snap.val() as LiveSensor | null;
       if (data) { setSensor(data); setSensorOnline(true); }
       else       { setSensorOnline(false); }
     }, () => setSensorOnline(false));
@@ -556,16 +564,16 @@ export default function CropAnalysisPage() {
     <ProtectedLayout>
       <div className="space-y-6 animate-fade-in">
         <PageHeader
-          title="Crop Analysis"
-          description="Compare live sensor readings against ideal parameters, or browse ideal values for any crop · ফসল বিশ্লেষণ"
-          badge="Analysis"
+          title={isBangla ? "ফসল বিশ্লেষণ" : "Crop Analysis"}
+          description={pageDescription}
+          badge={isBangla ? "বিশ্লেষণ" : "Analysis"}
         />
 
         {/* ── Mode tab switcher ── */}
         <div className="flex gap-1 p-1 bg-gray-100 rounded-2xl w-fit">
           {([
-            { key: "compare" as Mode, icon: ArrowLeftRight, label: "Compare with Realtime", bnLabel: "রিয়েলটাইম তুলনা" },
-            { key: "ideal"   as Mode, icon: BookOpen,       label: "Ideal Values",          bnLabel: "আদর্শ মান" },
+            { key: "compare" as Mode, icon: ArrowLeftRight, label: compareLabel, bnLabel: compareBnLabel },
+            { key: "ideal"   as Mode, icon: BookOpen,       label: isBangla ? "আদর্শ মান" : "Ideal Values", bnLabel: "আদর্শ মান" },
           ] as const).map(({ key, icon: Icon, label, bnLabel }) => (
             <button
               key={key}
@@ -654,7 +662,7 @@ export default function CropAnalysisPage() {
             className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-white border border-gray-200 text-sm text-gray-600 hover:border-green-400 hover:text-green-700 transition-all disabled:opacity-50"
           >
             <RefreshCw size={14} className={cn(idealLoading && "animate-spin")} />
-            Refresh
+            {isBangla ? "রিফ্রেশ" : "Refresh"}
           </button>
         </div>
 
@@ -667,13 +675,13 @@ export default function CropAnalysisPage() {
                 <>
                   <MatchGauge score={matchScore} />
                   <p className="text-xs text-gray-500 text-center -mt-1">
-                    Parameters within ideal range
+                    {isBangla ? "আদর্শ সীমার মধ্যে প্যারামিটার" : "Parameters within ideal range"}
                   </p>
                 </>
               ) : (
                 <div className="text-center">
                   <AlertCircle size={24} className="text-gray-300 mx-auto mb-1" />
-                  <p className="text-xs text-gray-400">No live sensor data</p>
+                  <p className="text-xs text-gray-400">{isBangla ? "লাইভ সেন্সর ডেটা নেই" : "No live sensor data"}</p>
                 </div>
               )}
             </div>
@@ -757,15 +765,17 @@ export default function CropAnalysisPage() {
               <div className="flex items-center gap-2">
                 <Sprout size={18} className="text-green-600" />
                 <h3 className="font-bold text-gray-900 text-sm">
-                  {mode === "compare" ? "Full Comparison Table" : "Ideal Reference Table"}
+                  {mode === "compare"
+                    ? (isBangla ? "সম্পূর্ণ তুলনা টেবিল" : "Full Comparison Table")
+                    : (isBangla ? "আদর্শ রেফারেন্স টেবিল" : "Ideal Reference Table")}
                   {" — "}
                   <span className="text-green-700 capitalize">{selectedCrop}</span>
                   <span className="ml-2 text-gray-400 font-normal">({selectedMeta?.bn})</span>
                 </h3>
               </div>
               {mode === "ideal" && (
-                <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-full px-3 py-1">
-                  Ideal reference only · সেন্সর ছাড়া
+                  <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-full px-3 py-1">
+                  {isBangla ? "শুধু আদর্শ রেফারেন্স · সেন্সর ছাড়া" : "Ideal reference only · সেন্সর ছাড়া"}
                 </span>
               )}
             </div>
@@ -807,9 +817,9 @@ export default function CropAnalysisPage() {
                     const sm     = STATUS_META[status];
                     const c      = COLOR[p.color as keyof typeof COLOR];
                     return (
-                      <>
+                      <Fragment key={p.key}>
                         {groupHeader}
-                      <tr key={p.key} className="hover:bg-gray-50/70 transition-colors">
+                      <tr className="hover:bg-gray-50/70 transition-colors">
                         <td className="px-4 py-3 font-semibold text-gray-900">
                           <div className="flex items-center gap-2">
                             <p.icon size={14} className={c.text} />
@@ -840,7 +850,7 @@ export default function CropAnalysisPage() {
                           </>
                         )}
                       </tr>
-                      </>
+                      </Fragment>
                     );
                   })}
                 </tbody>

@@ -6,10 +6,12 @@ import { useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Chatbot from "@/components/Chatbot";
 import { Leaf } from "lucide-react";
+import { useLanguage } from "@/lib/language-context";
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const { language } = useLanguage();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -33,7 +35,9 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
               />
             ))}
           </div>
-          <p className="text-sm text-gray-500 font-medium">Loading AgriSense…</p>
+          <p className="text-sm text-gray-500 font-medium">
+            {language === "bn" ? "AgriSense লোড হচ্ছে…" : "Loading AgriSense…"}
+          </p>
         </div>
       </div>
     );

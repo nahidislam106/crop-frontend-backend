@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { useLanguage } from "@/lib/language-context";
+import LanguageToggle from "@/components/LanguageToggle";
 import {
   LayoutDashboard,
   Sprout,
@@ -16,7 +19,6 @@ import {
   LogOut,
   Menu,
   X,
-  Leaf,
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -53,12 +55,24 @@ export default function Navbar() {
   const pathname          = usePathname();
   const router            = useRouter();
   const { user }          = useAuth();
+  const { language } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
   const handleLogout = async () => {
     await signOut(auth);
     router.push("/login");
+  };
+
+  const navLabels = {
+    dashboard: language === "bn" ? "ড্যাশবোর্ড" : "Dashboard",
+    soil: language === "bn" ? "মাটি" : "Soil Data",
+    weather: language === "bn" ? "আবহাওয়া" : "Weather",
+    recommend: language === "bn" ? "সুপারিশ" : "Recommend",
+    analysis: language === "bn" ? "বিশ্লেষণ" : "Analysis",
+    profile: language === "bn" ? "আমার প্রোফাইল" : "My Profile",
+    signOut: language === "bn" ? "সাইন আউট" : "Sign Out",
+    live: language === "bn" ? "লাইভ" : "Live",
   };
 
   const initials = user?.displayName
@@ -76,8 +90,15 @@ export default function Navbar() {
               href="/dashboard"
               className="flex items-center gap-2.5 group"
             >
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-sm group-hover:shadow-green-200 group-hover:scale-105 transition-all">
-                <Leaf className="w-4.5 h-4.5 text-white" size={18} />
+              <div className="w-8 h-8 rounded-lg overflow-hidden shadow-sm ring-1 ring-green-100 group-hover:shadow-green-200 group-hover:scale-105 transition-all">
+                <Image
+                  src="/logo.png"
+                  alt="AgriSense Logo"
+                  width={32}
+                  height={32}
+                  className="w-8 h-8 object-cover"
+                  priority
+                />
               </div>
               <span className="font-bold text-gray-900 text-lg tracking-tight">
                 Agri<span className="gradient-text">Sense</span>
@@ -88,6 +109,15 @@ export default function Navbar() {
             <nav className="hidden md:flex items-center gap-1">
               {navLinks.map(({ label, href, icon: Icon }) => {
                 const active = pathname === href || pathname.startsWith(href + "/");
+                const localizedLabel = href === "/dashboard"
+                  ? navLabels.dashboard
+                  : href === "/soil"
+                  ? navLabels.soil
+                  : href === "/weather"
+                  ? navLabels.weather
+                  : href === "/recommend"
+                  ? navLabels.recommend
+                  : navLabels.analysis;
                 return (
                   <Link
                     key={href}
@@ -100,7 +130,7 @@ export default function Navbar() {
                     )}
                   >
                     <Icon size={16} />
-                    {label}
+                    {localizedLabel}
                   </Link>
                 );
               })}
@@ -108,10 +138,12 @@ export default function Navbar() {
 
             {/* Right actions */}
             <div className="flex items-center gap-3">
+              <LanguageToggle compact className="hidden sm:flex" />
+
               {/* Live indicator */}
               <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-green-50 rounded-full border border-green-200">
                 <span className="live-dot w-2 h-2 rounded-full bg-green-500" />
-                <span className="text-xs font-medium text-green-700">Live</span>
+                <span className="text-xs font-medium text-green-700">{navLabels.live}</span>
               </div>
 
               {/* Profile dropdown */}
@@ -142,7 +174,7 @@ export default function Navbar() {
                       {/* User info */}
                       <div className="px-4 py-3 border-b border-gray-100">
                         <p className="text-sm font-semibold text-gray-900 truncate">
-                          {user?.displayName || "Farmer"}
+                          {user?.displayName || (language === "bn" ? "কৃষক" : "Farmer")}
                         </p>
                         <p className="text-xs text-gray-500 truncate mt-0.5">
                           {user?.email}
@@ -155,14 +187,14 @@ export default function Navbar() {
                           className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-all"
                         >
                           <User size={15} className="text-gray-400" />
-                          My Profile
+                          {navLabels.profile}
                         </Link>
                         <button
                           onClick={handleLogout}
                           className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-red-600 hover:bg-red-50 transition-all mt-1"
                         >
                           <LogOut size={15} />
-                          Sign Out
+                          {navLabels.signOut}
                         </button>
                       </div>
                     </div>
@@ -186,6 +218,15 @@ export default function Navbar() {
           <div className="md:hidden bg-white/95 border-t border-gray-100 px-4 py-3 space-y-1 animate-slide-up backdrop-blur-sm">
             {navLinks.map(({ label, href, icon: Icon }) => {
               const active = pathname === href;
+              const localizedLabel = href === "/dashboard"
+                ? navLabels.dashboard
+                : href === "/soil"
+                ? navLabels.soil
+                : href === "/weather"
+                ? navLabels.weather
+                : href === "/recommend"
+                ? navLabels.recommend
+                : navLabels.analysis;
               return (
                 <Link
                   key={href}
@@ -199,7 +240,7 @@ export default function Navbar() {
                   )}
                 >
                   <Icon size={18} />
-                  {label}
+                  {localizedLabel}
                 </Link>
               );
             })}
@@ -210,15 +251,16 @@ export default function Navbar() {
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-gray-700 hover:bg-gray-50"
               >
                 <User size={18} />
-                My Profile
+                {navLabels.profile}
               </Link>
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-red-600 hover:bg-red-50"
               >
                 <LogOut size={18} />
-                Sign Out
+                {navLabels.signOut}
               </button>
+              <LanguageToggle className="w-full justify-start rounded-xl px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 mt-1 border-gray-100" />
             </div>
           </div>
         )}

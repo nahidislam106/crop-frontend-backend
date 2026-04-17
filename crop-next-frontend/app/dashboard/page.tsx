@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import ProtectedLayout from "@/components/ProtectedLayout";
 import StatCard from "@/components/StatCard";
 import PageHeader from "@/components/PageHeader";
+import { useLanguage } from "@/lib/language-context";
 import {
   FlaskConical, Thermometer, Droplets, Zap, CloudSun,
   Sprout, ArrowRight, Activity, TrendingUp, BarChart2,
@@ -36,20 +37,25 @@ const quickLinks = [
 export default function DashboardPage() {
   const { user }           = useAuth();
   const router             = useRouter();
+  const { language }       = useLanguage();
   const [soil, setSoil]    = useState<SoilData | null>(null);
   const [soilErr, setSoilErr] = useState(false);
+  const isBangla = language === "bn";
+  const pageDescription = "Live sensor readings from your field";
+  const heroStatus = "System Active";
+  const heroCopy = "Your farm data is being monitored in real-time. All sensors are operational.";
 
   useEffect(() => {
     const soilRef = ref(database, "npkSensor/current");
     const unsub   = onValue(soilRef, (snap) => {
-      const data = snap.val();
+      const data = snap.val() as SoilData | null;
       if (data) { setSoil(data); setSoilErr(false); }
       else       { setSoilErr(true); }
     }, () => setSoilErr(true));
     return () => unsub();
   }, []);
 
-  const firstName = user?.displayName?.split(" ")[0] || user?.email?.split("@")[0] || "Farmer";
+  const firstName = user?.displayName?.split(" ")[0] || user?.email?.split("@")[0] || (isBangla ? "কৃষক" : "Farmer");
   const hour      = new Date().getHours();
   const greeting  = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
@@ -62,13 +68,13 @@ export default function DashboardPage() {
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-2">
             <Activity size={16} className="text-green-200" />
-            <span className="text-green-200 text-sm font-medium">System Active</span>
+            <span className="text-green-200 text-sm font-medium">{heroStatus}</span>
           </div>
           <h2 className="text-3xl font-bold text-white mb-2">
             {greeting}, {firstName}! 👋
           </h2>
           <p className="text-green-100 text-sm leading-relaxed max-w-lg">
-            Your farm data is being monitored in real-time. All sensors are operational.
+            {heroCopy}
           </p>
           <div className="flex flex-wrap gap-3 mt-5">
             <button
@@ -90,9 +96,9 @@ export default function DashboardPage() {
       </div>
 
       <PageHeader
-        title="Farm Overview"
-        description="Live sensor readings from your field"
-        badge="Real-time"
+        title={isBangla ? "খামারের সারসংক্ষেপ" : "Farm Overview"}
+        description={pageDescription}
+        badge={isBangla ? "রিয়েল-টাইম" : "Real-time"}
       />
 
       {/* Live soil stats */}
@@ -100,9 +106,11 @@ export default function DashboardPage() {
         <div className="bg-amber-50 border border-amber-200 rounded-2xl px-6 py-5 mb-8 flex items-start gap-3">
           <span className="text-2xl">⚠️</span>
           <div>
-            <p className="font-semibold text-amber-800 text-sm">No sensor data available</p>
+            <p className="font-semibold text-amber-800 text-sm">{isBangla ? "কোনও সেন্সর ডেটা নেই" : "No sensor data available"}</p>
             <p className="text-amber-700 text-xs mt-1">
-              Make sure your ESP8266 device is on and connected to Firebase.
+              {isBangla
+                ? "আপনার ESP8266 ডিভাইস চালু আছে এবং Firebase-এর সাথে সংযুক্ত কিনা দেখুন।"
+                : "Make sure your ESP8266 device is on and connected to Firebase."}
             </p>
           </div>
         </div>
@@ -170,7 +178,7 @@ export default function DashboardPage() {
       <div className="mb-6">
         <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
           <TrendingUp size={18} className="text-green-600" />
-          Quick Access
+          {isBangla ? "দ্রুত প্রবেশ" : "Quick Access"}
         </h3>
         <div className="grid sm:grid-cols-3 gap-4">
           {quickLinks.map(({ label, href, icon: Icon, color, bg, text, desc }) => (

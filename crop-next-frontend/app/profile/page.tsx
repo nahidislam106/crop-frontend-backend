@@ -7,6 +7,7 @@ import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import ProtectedLayout from "@/components/ProtectedLayout";
 import PageHeader from "@/components/PageHeader";
+import { useLanguage } from "@/lib/language-context";
 import {
   User, Mail, MapPin, Lock, Save, Trash2, CheckCircle2,
   AlertCircle, Eye, EyeOff, Calendar, Sprout,
@@ -31,6 +32,8 @@ type LandPredictions = Record<string, PredictionEntry[]>;
 
 export default function ProfilePage() {
   const { user }   = useAuth();
+  const { language } = useLanguage();
+  const isBangla = language === "bn";
   const router     = useRouter();
 
   const [profile, setProfile] = useState<Profile>({
@@ -129,7 +132,10 @@ export default function ProfilePage() {
 
   return (
     <ProtectedLayout>
-      <PageHeader title="My Profile" description="Manage your account and view saved predictions" />
+      <PageHeader
+        title={isBangla ? "আমার প্রোফাইল" : "My Profile"}
+        description={isBangla ? "আপনার অ্যাকাউন্ট পরিচালনা করুন এবং সংরক্ষিত পূর্বাভাস দেখুন" : "Manage your account and view saved predictions"}
+      />
 
       {alert && (
         <div
@@ -153,25 +159,25 @@ export default function ProfilePage() {
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4 shadow-lg">
               {initials}
             </div>
-            <h2 className="font-bold text-gray-900 text-lg">{user?.displayName || "Farmer"}</h2>
+            <h2 className="font-bold text-gray-900 text-lg">{user?.displayName || (isBangla ? "কৃষক" : "Farmer")}</h2>
             <p className="text-gray-400 text-sm mt-0.5">{user?.email}</p>
             <div className="flex justify-center gap-4 mt-4">
               <div className="text-center">
                 <div className="text-xl font-bold text-gray-900">{Object.keys(lands).length}</div>
-                <div className="text-xs text-gray-400">Land Parcels</div>
+                <div className="text-xs text-gray-400">{isBangla ? "জমির খণ্ড" : "Land Parcels"}</div>
               </div>
               <div className="w-px bg-gray-100" />
               <div className="text-center">
                 <div className="text-xl font-bold text-gray-900">{totalPreds}</div>
-                <div className="text-xs text-gray-400">Predictions</div>
+                <div className="text-xs text-gray-400">{isBangla ? "পূর্বাভাস" : "Predictions"}</div>
               </div>
             </div>
           </div>
 
           {/* Change password */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="font-bold text-gray-900 text-sm mb-4 flex items-center gap-2">
-              <Lock size={15} className="text-gray-400" /> Change Password
+              <h3 className="font-bold text-gray-900 text-sm mb-4 flex items-center gap-2">
+              <Lock size={15} className="text-gray-400" /> {isBangla ? "পাসওয়ার্ড পরিবর্তন" : "Change Password"}
             </h3>
             <div className="space-y-3">
               <div className="relative">
@@ -180,7 +186,7 @@ export default function ProfilePage() {
                   type={showPw ? "text" : "password"}
                   value={curPw}
                   onChange={(e) => setCurPw(e.target.value)}
-                  placeholder="Current password"
+                  placeholder={isBangla ? "বর্তমান পাসওয়ার্ড" : "Current password"}
                   className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-gray-50 focus:bg-white transition-all"
                 />
               </div>
@@ -190,7 +196,7 @@ export default function ProfilePage() {
                   type={showPw ? "text" : "password"}
                   value={newPw}
                   onChange={(e) => setNewPw(e.target.value)}
-                  placeholder="New password"
+                  placeholder={isBangla ? "নতুন পাসওয়ার্ড" : "New password"}
                   className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-gray-50 focus:bg-white transition-all"
                 />
                 <button
@@ -206,7 +212,7 @@ export default function ProfilePage() {
                 disabled={pwSaving}
                 className="w-full py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 transition-all disabled:opacity-60"
               >
-                {pwSaving ? "Updating…" : "Update Password"}
+                {pwSaving ? (isBangla ? "আপডেট হচ্ছে…" : "Updating…") : (isBangla ? "পাসওয়ার্ড আপডেট করুন" : "Update Password")}
               </button>
             </div>
           </div>
@@ -218,14 +224,14 @@ export default function ProfilePage() {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
-                <User size={15} className="text-gray-400" /> Personal Information
+                <User size={15} className="text-gray-400" /> {isBangla ? "ব্যক্তিগত তথ্য" : "Personal Information"}
               </h3>
               {!editMode ? (
                 <button
                   onClick={() => setEditMode(true)}
                   className="text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg font-medium hover:bg-green-100 transition-all"
                 >
-                  Edit
+                  {isBangla ? "সম্পাদনা" : "Edit"}
                 </button>
               ) : (
                 <div className="flex gap-2">
@@ -233,7 +239,7 @@ export default function ProfilePage() {
                     onClick={() => setEditMode(false)}
                     className="text-xs text-gray-500 px-3 py-1.5 rounded-lg font-medium hover:bg-gray-100 transition-all"
                   >
-                    Cancel
+                    {isBangla ? "বাতিল" : "Cancel"}
                   </button>
                   <button
                     onClick={saveProfile}
@@ -241,19 +247,19 @@ export default function ProfilePage() {
                     className="flex items-center gap-1.5 text-xs text-white bg-green-500 px-3 py-1.5 rounded-lg font-medium hover:bg-green-600 transition-all disabled:opacity-60"
                   >
                     <Save size={12} />
-                    {saving ? "Saving…" : "Save"}
+                    {saving ? (isBangla ? "সংরক্ষণ করা হচ্ছে…" : "Saving…") : (isBangla ? "সংরক্ষণ" : "Save")}
                   </button>
                 </div>
               )}
             </div>
             <div className="p-6 grid sm:grid-cols-2 gap-4">
               {[
-                { label: "Full Name",     key: "name",        icon: <User size={14} />,    type: "text" },
-                { label: "Email",         key: "email",       icon: <Mail size={14} />,    type: "email", disabled: true, value: user?.email ?? "" },
-                { label: "Village",       key: "village",     icon: <MapPin size={14} />,  type: "text" },
-                { label: "Sub-district",  key: "subDistrict", icon: <MapPin size={14} />,  type: "text" },
-                { label: "District",      key: "district",    icon: <MapPin size={14} />,  type: "text" },
-                { label: "Detailed Addr", key: "detailedAddr",icon: <MapPin size={14} />,  type: "text" },
+                { label: isBangla ? "পুরো নাম" : "Full Name",     key: "name",        icon: <User size={14} />,    type: "text" },
+                { label: isBangla ? "ইমেইল" : "Email",         key: "email",       icon: <Mail size={14} />,    type: "email", disabled: true, value: user?.email ?? "" },
+                { label: isBangla ? "গ্রাম" : "Village",       key: "village",     icon: <MapPin size={14} />,  type: "text" },
+                { label: isBangla ? "উপজেলা" : "Sub-district",  key: "subDistrict", icon: <MapPin size={14} />,  type: "text" },
+                { label: isBangla ? "জেলা" : "District",      key: "district",    icon: <MapPin size={14} />,  type: "text" },
+                { label: isBangla ? "বিস্তারিত ঠিকানা" : "Detailed Addr", key: "detailedAddr",icon: <MapPin size={14} />,  type: "text" },
               ].map(({ label, key, icon, type, disabled, value: overrideVal }) => {
                 const val = overrideVal !== undefined ? overrideVal : profile[key as keyof Profile];
                 return (

@@ -6,19 +6,13 @@ import {
   RefreshCw, ChevronDown, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/lib/language-context";
 
 interface Message {
   id:      number;
   role:    "user" | "assistant";
   content: string;
 }
-
-const STARTERS = [
-  "আমার মাটির pH ৬.৫ — কোন ফসল ভালো হবে?",
-  "ধানে ব্লাস্ট রোগ হলে কী করব?",
-  "What crop suits N=80, P=40, K=30, pH 6.5?",
-  "How to fix low potassium in my soil?",
-];
 
 function TypingDots() {
   return (
@@ -99,6 +93,22 @@ export default function Chatbot() {
   const bottomRef  = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLTextAreaElement>(null);
   const idCounter  = useRef(0);
+  const { language } = useLanguage();
+  const isBangla = language === "bn";
+
+  const starters = isBangla
+    ? [
+        "আমার মাটির pH ৬.৫ — কোন ফসল ভালো হবে?",
+        "ধানে ব্লাস্ট রোগ হলে কী করব?",
+        "N=80, P=40, K=30, pH 6.5 হলে কোন ফসল ভালো?",
+        "কম পটাশিয়াম কীভাবে ঠিক করব?",
+      ]
+    : [
+        "My soil pH is 6.5 - which crop is best?",
+        "What should I do if rice blast appears?",
+        "What crop suits N=80, P=40, K=30, pH 6.5?",
+        "How do I fix low potassium in my soil?",
+      ];
 
   const nextId = () => ++idCounter.current;
 
@@ -231,14 +241,15 @@ export default function Chatbot() {
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center mb-3">
                   <Leaf size={26} className="text-green-600" />
                 </div>
-                <h4 className="font-bold text-gray-900 text-sm mb-1">Ask AgriBot / এগ্রিবটকে জিজ্ঞাসা করুন</h4>
+                <h4 className="font-bold text-gray-900 text-sm mb-1">
+                  {isBangla ? "AgriBot / এগ্রিবটকে জিজ্ঞাসা করুন" : "Ask AgriBot"}
+                </h4>
                 <p className="text-xs text-gray-400 leading-relaxed max-w-[220px]">
-                  Soil · Crops · Fertilizer · Pests<br />
-                  মাটি · ফসল · সার · পোকামাকড়
+                  {isBangla ? "মাটি · ফসল · সার · পোকামাকড়" : "Soil · Crops · Fertilizer · Pests"}
                 </p>
                 {/* Quick starter buttons */}
                 <div className="mt-4 flex flex-col gap-1.5 w-full">
-                  {STARTERS.map((s) => (
+                  {starters.map((s) => (
                     <button
                       key={s}
                       onClick={() => sendMessage(s)}
@@ -292,7 +303,7 @@ export default function Chatbot() {
                   e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
                 }}
                 onKeyDown={handleKey}
-                placeholder="Ask in English or বাংলায় লিখুন…"
+                placeholder={isBangla ? "বাংলা বা ইংরেজিতে লিখুন…" : "Ask in English or Bengali…"}
                 disabled={loading}
                 className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 resize-none outline-none min-h-[24px] max-h-[120px] py-0.5 disabled:opacity-50"
                 style={{ lineHeight: "1.5" }}
@@ -309,7 +320,7 @@ export default function Chatbot() {
               </button>
             </div>
             <p className="text-center text-gray-300 text-[10px] mt-1.5">
-              Powered by OpenRouter AI · Enter to send
+              {isBangla ? "OpenRouter AI দ্বারা চালিত · পাঠাতে Enter চাপুন" : "Powered by OpenRouter AI · Enter to send"}
             </p>
           </div>
         </div>

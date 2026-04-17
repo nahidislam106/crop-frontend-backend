@@ -6,6 +6,7 @@ import StatCard from "@/components/StatCard";
 import PageHeader from "@/components/PageHeader";
 import { getStatusColor, formatNumber } from "@/lib/utils";
 import { Thermometer, Droplets, Sun, Wind, MapPin, RefreshCw, Loader2 } from "lucide-react";
+import { useLanguage } from "@/lib/language-context";
 
 interface WeatherData {
   temperature:    number;
@@ -50,6 +51,8 @@ export default function WeatherPage() {
   const [location, setLocation] = useState<LocationInfo | null>(null);
   const [locLoading, setLocLoading] = useState(false);
   const [locError,   setLocError]   = useState<string | null>(null);
+  const { language } = useLanguage();
+  const isBangla = language === "bn";
 
   const refresh = useCallback(() => {
     const w = generateWeather();
@@ -64,7 +67,7 @@ export default function WeatherPage() {
   }, [refresh]);
 
   const getLocation = () => {
-    if (!navigator.geolocation) { setLocError("Geolocation not supported."); return; }
+    if (!navigator.geolocation) { setLocError(isBangla ? "Geolocation সমর্থিত নয়।" : "Geolocation not supported."); return; }
     setLocLoading(true);
     setLocError(null);
     navigator.geolocation.getCurrentPosition(
@@ -84,7 +87,7 @@ export default function WeatherPage() {
         }
       },
       (err) => {
-        setLocError("Location permission denied.");
+        setLocError(isBangla ? "লোকেশন অনুমতি বাতিল করা হয়েছে।" : "Location permission denied.");
         setLocLoading(false);
       }
     );
@@ -131,16 +134,16 @@ export default function WeatherPage() {
   return (
     <ProtectedLayout>
       <PageHeader
-        title="Weather & Microclimate"
-        description="Local atmospheric conditions updated every 30 seconds"
-        badge="Auto-refresh"
+        title={isBangla ? "আবহাওয়া ও মাইক্রোক্লাইমেট" : "Weather & Microclimate"}
+        description={isBangla ? "লোকাল আবহাওয়ার অবস্থা প্রতি ৩০ সেকেন্ডে আপডেট হয়" : "Local atmospheric conditions updated every 30 seconds"}
+        badge={isBangla ? "অটো-রিফ্রেশ" : "Auto-refresh"}
         action={
           <button
             onClick={refresh}
             className="flex items-center gap-2 text-sm bg-white border border-gray-200 text-gray-700 font-medium px-4 py-2 rounded-xl hover:bg-gray-50 transition-all shadow-sm"
           >
             <RefreshCw size={14} />
-            Refresh
+            {isBangla ? "রিফ্রেশ" : "Refresh"}
           </button>
         }
       />
@@ -157,14 +160,14 @@ export default function WeatherPage() {
         <div className="relative z-10 flex items-center justify-between">
           <div>
             <p className="text-white/80 text-sm font-medium mb-1">
-              {isDaytime ? "☀️ Daytime" : "🌙 Nighttime"}
+              {isDaytime ? (isBangla ? "☀️ দিনের সময়" : "☀️ Daytime") : (isBangla ? "🌙 রাতের সময়" : "🌙 Nighttime")}
             </p>
             {weather && (
               <div className="flex items-end gap-3">
                 <span className="text-5xl font-bold text-white">{weather.temperature}°C</span>
                 <div className="pb-1 text-white/80 text-sm">
-                  <div>💧 {weather.humidity}% humidity</div>
-                  <div>🌬 {weather.pressure} hPa</div>
+                  <div>{isBangla ? "💧 আর্দ্রতা" : "💧 humidity"} {weather.humidity}%</div>
+                  <div>{isBangla ? "🌬 বায়ু চাপ" : "🌬 air pressure"} {weather.pressure} hPa</div>
                 </div>
               </div>
             )}
@@ -201,7 +204,7 @@ export default function WeatherPage() {
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
             <MapPin size={16} className="text-green-600" />
-            Your Location
+            {isBangla ? "আপনার অবস্থান" : "Your Location"}
           </h3>
           {!location && (
             <button
@@ -210,7 +213,7 @@ export default function WeatherPage() {
               className="flex items-center gap-2 text-xs bg-green-50 text-green-700 border border-green-200 px-4 py-2 rounded-xl font-medium hover:bg-green-100 transition-all disabled:opacity-60"
             >
               {locLoading ? <Loader2 size={13} className="animate-spin" /> : <MapPin size={13} />}
-              {locLoading ? "Locating…" : "Detect Location"}
+              {locLoading ? (isBangla ? "অবস্থান শনাক্ত করা হচ্ছে…" : "Locating…") : (isBangla ? "অবস্থান শনাক্ত করুন" : "Detect Location")}
             </button>
           )}
         </div>
@@ -240,7 +243,7 @@ export default function WeatherPage() {
       {history.length > 1 && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100">
-            <h3 className="font-bold text-gray-900 text-sm">Reading History</h3>
+            <h3 className="font-bold text-gray-900 text-sm">{isBangla ? "রিডিং ইতিহাস" : "Reading History"}</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">

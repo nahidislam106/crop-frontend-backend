@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Leaf, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
+import LanguageToggle from "@/components/LanguageToggle";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,6 +34,9 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex">
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageToggle compact />
+      </div>
       {/* Left — branding panel */}
       <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-green-600 via-emerald-600 to-teal-700 flex-col justify-between p-12 relative overflow-hidden">
         {/* Decorative circles */}
