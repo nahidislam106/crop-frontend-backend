@@ -7,6 +7,39 @@ export function cn(...inputs: ClassValue[]) {
 
 export const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "https://backend-c9ek.onrender.com";
 
+export interface WeatherSnapshot {
+  temperature: number;
+  humidity: number;
+  lightIntensity: number;
+  pressure: number;
+  timestamp: number;
+}
+
+export function generateWeatherSnapshot(): WeatherSnapshot {
+  const hour = new Date().getHours();
+  const temperature = parseFloat(((hour >= 12 && hour <= 16 ? 20 : 19) + (Math.random() * 3 - 1.5)).toFixed(1));
+  const humidity = parseFloat((60 + Math.random() * 30).toFixed(1));
+  const lightIntensity = hour >= 6 && hour <= 18
+    ? parseInt((800 + Math.random() * 1000).toFixed(0), 10)
+    : parseInt((Math.random() * 200).toFixed(0), 10);
+  const pressure = parseFloat((1000 + Math.random() * 15 - 7.5).toFixed(1));
+
+  return {
+    temperature,
+    humidity,
+    lightIntensity,
+    pressure,
+    timestamp: Date.now(),
+  };
+}
+
+export function normalizeConductivityReading(value: number | undefined | null): number | null {
+  if (value === null || value === undefined || Number.isNaN(value)) return null;
+  if (value <= 10) return value;
+  if (value <= 100) return parseFloat((value / 10).toFixed(2));
+  return 10;
+}
+
 export function formatNumber(n: number | null | undefined, decimals = 1): string {
   if (n === null || n === undefined) return "—";
   return n.toFixed(decimals);

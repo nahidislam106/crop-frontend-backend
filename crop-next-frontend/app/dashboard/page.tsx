@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ref, onValue } from "firebase/database";
-import { database } from "@/lib/firebase";
+import { database, pickLatestHistoryEntry } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import ProtectedLayout from "@/components/ProtectedLayout";
 import StatCard from "@/components/StatCard";
@@ -46,9 +46,10 @@ export default function DashboardPage() {
   const heroCopy = "Your farm data is being monitored in real-time. All sensors are operational.";
 
   useEffect(() => {
-    const soilRef = ref(database, "npkSensor/current");
+    const soilRef = ref(database, "soil_data/history");
     const unsub   = onValue(soilRef, (snap) => {
-      const data = snap.val() as SoilData | null;
+      const history = snap.val() as Record<string, SoilData> | null;
+      const data = pickLatestHistoryEntry(history);
       if (data) { setSoil(data); setSoilErr(false); }
       else       { setSoilErr(true); }
     }, () => setSoilErr(true));

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ref, onValue, off } from "firebase/database";
-import { database } from "@/lib/firebase";
+import { database, pickLatestHistoryEntry } from "@/lib/firebase";
 import ProtectedLayout from "@/components/ProtectedLayout";
 import StatCard from "@/components/StatCard";
 import PageHeader from "@/components/PageHeader";
@@ -59,10 +59,11 @@ export default function SoilPage() {
   }, []);
 
   useEffect(() => {
-    const curRef = ref(database, "npkSensor/current");
+    const curRef = ref(database, "soil_data/history");
 
     const unsub = onValue(curRef, (snap) => {
-      commitReading(snap.val() as SoilReading | null);
+      const history = snap.val() as Record<string, SoilReading> | null;
+      commitReading(pickLatestHistoryEntry(history));
     }, (err) => {
       console.error(err);
       setError(isBangla ? "Firebase সংযোগে সমস্যা হয়েছে।" : "Firebase connection error.");

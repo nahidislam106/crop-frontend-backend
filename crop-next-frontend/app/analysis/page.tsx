@@ -4,7 +4,7 @@ import { Fragment, useState, useEffect, useCallback } from "react";
 import ProtectedLayout from "@/components/ProtectedLayout";
 import PageHeader from "@/components/PageHeader";
 import { ref, onValue } from "firebase/database";
-import { database } from "@/lib/firebase";
+import { database, pickLatestHistoryEntry } from "@/lib/firebase";
 import { API_BASE, cn, formatNumber } from "@/lib/utils";
 import { CROP_NAMES } from "@/lib/knowledge-base";
 import { useLanguage } from "@/lib/language-context";
@@ -498,9 +498,10 @@ export default function CropAnalysisPage() {
 
   // Firebase live listener
   useEffect(() => {
-    const dbRef = ref(database, "npkSensor/current");
+    const dbRef = ref(database, "soil_data/history");
     const unsub = onValue(dbRef, (snap) => {
-      const data = snap.val() as LiveSensor | null;
+      const history = snap.val() as Record<string, LiveSensor> | null;
+      const data = pickLatestHistoryEntry(history);
       if (data) { setSensor(data); setSensorOnline(true); }
       else       { setSensorOnline(false); }
     }, () => setSensorOnline(false));

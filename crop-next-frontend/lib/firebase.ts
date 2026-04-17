@@ -17,4 +17,17 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 export const auth     = getAuth(app);
 export const db       = getDatabase(app);
 export const database = db;
+
+// Firebase push IDs are lexicographically sortable by creation time,
+// so the max key corresponds to the latest history entry.
+export function pickLatestHistoryEntry<T>(
+  history: Record<string, T> | null | undefined,
+): T | null {
+  if (!history) return null;
+  const keys = Object.keys(history);
+  if (keys.length === 0) return null;
+  const latestKey = keys.reduce((max, key) => (key > max ? key : max), keys[0]);
+  return history[latestKey] ?? null;
+}
+
 export default app;

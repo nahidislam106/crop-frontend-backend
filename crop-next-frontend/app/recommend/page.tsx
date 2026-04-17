@@ -3,12 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import ProtectedLayout from "@/components/ProtectedLayout";
 import PageHeader from "@/components/PageHeader";
-import { API_BASE } from "@/lib/utils";
+import { API_BASE, generateWeatherSnapshot, normalizeConductivityReading } from "@/lib/utils";
 import { ref, onValue, off, push, set } from "firebase/database";
-import { database } from "@/lib/firebase";
+import { database, pickLatestHistoryEntry } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
-import Image from "next/image";
 import {
   Sprout, FlaskConical, Thermometer, CloudSun, Loader2, AlertCircle,
   CheckCircle2, Info, ChevronDown, ChevronUp,
@@ -151,9 +150,10 @@ export default function RecommendPage() {
 
   // Subscribe to Firebase sensor data
   useEffect(() => {
-    const curRef = ref(database, "npkSensor/current");
+    const curRef = ref(database, "soil_data/history");
     const unsub  = onValue(curRef, (snap) => {
-      const data = snap.val() as SoilReading | null;
+      const history = snap.val() as Record<string, SoilReading> | null;
+      const data = pickLatestHistoryEntry(history);
       if (data) { setLiveSoil(data); setSensorOnline(true); }
       else        { setSensorOnline(false); }
     }, () => setSensorOnline(false));
@@ -163,6 +163,8 @@ export default function RecommendPage() {
   // Fill form from live sensor data + optional auto-predict
   const loadFromSensor = (andPredict = false) => {
     if (!liveSoil) return;
+    const weatherSnapshot = generateWeatherSnapshot();
+    const normalizedEc = normalizeConductivityReading(liveSoil.conductivity);
     const filled: FormValues = {
       N:                   (liveSoil.nitrogen    ?? "").toString(),
       P:                   (liveSoil.phosphorus  ?? "").toString(),
@@ -170,13 +172,12 @@ export default function RecommendPage() {
       temperature:         (liveSoil.temperature ?? "").toString(),
       humidity:            (liveSoil.humidity    ?? "").toString(),
       ph:                  (liveSoil.ph          ?? "").toString(),
-      EC:                  (liveSoil.conductivity?? "").toString(),
-      // Weather fields stay as-is unless they were empty
-      weather_temperature: form.weather_temperature || (liveSoil.temperature ?? "").toString(),
-      weather_humidity:    form.weather_humidity    || (liveSoil.humidity    ?? "").toString(),
-      light_intensity:     form.light_intensity     || "",
-      air_pressure:        form.air_pressure        || "",
-      rainfall:            form.rainfall            || "",
+      EC:                  normalizedEc != null ? normalizedEc.toString() : "",
+      weather_temperature: form.weather_temperature || weatherSnapshot.temperature.toString(),
+      weather_humidity:    form.weather_humidity    || weatherSnapshot.humidity.toString(),
+      light_intensity:     form.light_intensity     || weatherSnapshot.lightIntensity.toString(),
+      air_pressure:        form.air_pressure        || weatherSnapshot.pressure.toString(),
+      rainfall:            form.rainfall            || ((liveSoil.humidity ?? 0) > 75 ? "12.5" : "1.2"),
     };
     setForm(filled);
     setSensorLoaded(true);
@@ -304,7 +305,7 @@ export default function RecommendPage() {
   };
 
   const confidencePct  = result ? Math.round(result.confidence * 100) : 0;
-  const cropKey        = result?.recommended_crop?.toLowerCase() ?? "";
+  const cropKey        = result?.recommended_crop?.toLowerCase().replace(/\s+/g, "") ?? "";
   const emoji          = cropEmoji[cropKey] ?? "🌱";
   // Image filenames exactly match lowercase crop names
   const CROPS_WITH_IMG = [
@@ -313,9 +314,13 @@ export default function RecommendPage() {
     "mungbean","muskmelon","orange","papaya","pigeonpeas","pomegranate",
     "rice","watermelon",
   ];
-  const cropImgSrc = cropKey && CROPS_WITH_IMG.includes(cropKey)
-    ? `/cropImages/${cropKey}.jpg`
-    : null;
+  const IMAGE_ALIASES: Record<string, string> = {
+    balsamapple: "balsam",
+  };
+  const imageKey = IMAGE_ALIASES[cropKey] ?? cropKey;
+  const cropImgSrc = imageKey && CROPS_WITH_IMG.includes(imageKey)
+    ? `/cropImages/${imageKey}.jpg`
+    : "/logo.png";
 
   return (
     <ProtectedLayout>
@@ -511,19 +516,17 @@ export default function RecommendPage() {
                   <CheckCircle2 size={14} />
                   {isBangla ? "পরামর্শ প্রস্তুত" : "Recommendation ready"}
                 </div>
-                {cropImgSrc ? (
-                  <div className="relative w-full h-44 rounded-xl overflow-hidden mb-3 shadow-md">
-                    <Image
-                      src={cropImgSrc}
-                      alt={result.recommended_crop}
-                      fill
-                      className="object-cover"
-                      priority
-                    />
-                  </div>
-                ) : (
-                  <div className="text-6xl mb-2">{emoji}</div>
-                )}
+                <div className="relative w-full h-44 rounded-xl overflow-hidden mb-3 shadow-md bg-white/10">
+                  <img
+                    src={cropImgSrc}
+                    alt={result.recommended_crop}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = "/logo.png";
+                    }}
+                  />
+                </div>
                 <h3 className="text-3xl font-bold capitalize mb-1">
                   {result.recommended_crop}
                 </h3>
